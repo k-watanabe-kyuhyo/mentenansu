@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- React & Tailwind -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+ 
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
+
+
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .animate-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .custom-scroll::-webkit-scrollbar { height: 4px; width: 4px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #ddd; border-radius: 10px; }
+    .modal-overlay { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); }
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1rem;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div id="root"></div>
+
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useMemo } = React;
+
+
+    const ICONS = {
+      ChevronLeft: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m15 18-6-6 6-6"/></svg>,
+      Settings: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
+      IceCream: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11"/><path d="M17 11a5 5 0 0 0-10 0"/></svg>,
+      Factory: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/></svg>,
+      Warehouse: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/></svg>,
+      BarChart3: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>,
+      PlusCircle: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>,
+      Trash2: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>,
+      Camera: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>,
+      Save: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
+      X: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 6 6 18M6 6l12 12"/></svg>,
+      Search: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+      Filter: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>,
+      TrendingUp: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
+      Clock: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+      Wrench: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>,
+      Activity: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+      PieChart: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>,
+    };
+
+
+    const Icon = ({ name, size = 24, className = "" }) => {
+      const IconComponent = ICONS[name];
+      return IconComponent ? <IconComponent width={size} height={size} className={className} /> : null;
+    };
+
+
+    const LOCATIONS = [
+      { id: 'ice', name: '製氷棟', icon: 'IceCream', color: 'bg-blue-500' },
+      { id: 'process', name: '加工棟', icon: 'Factory', color: 'bg-green-500' },
+      { id: 'building4', name: '４番棟', icon: 'Warehouse', color: 'bg-orange-500' },
+      { id: 'dashboard', name: '集計表示', icon: 'BarChart3', color: 'bg-purple-600' }
+    ];
+
+
+    const compressImage = (file) => {
+      return new Promise((resolve, reject) => {
+        if (file.type === 'application/pdf') {
+          const fileReader = new FileReader();
+          fileReader.onload = async function() {
+            try {
+              const typedarray = new Uint8Array(this.result);
+              const pdf = await pdfjsLib.getDocument(typedarray).promise;
+              const page = await pdf.getPage(1);
+              const viewport = page.getViewport({ scale: 2 });
+              const canvas = document.createElement('canvas');
+              const context = canvas.getContext('2d');
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+              await page.render({ canvasContext: context, viewport: viewport }).promise;
+              const tempImg = new Image();
+              tempImg.src = canvas.toDataURL('image/jpeg');
+              tempImg.onload = () => { processImage(tempImg, file.name).then(resolve).catch(reject); };
+            } catch (e) { reject("PDFの変換に失敗しました"); }
+          };
+          fileReader.readAsArrayBuffer(file);
+          return;
+        }
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => { processImage(img, file.name).then(resolve).catch(reject); };
+          img.onerror = reject;
+        };
+        reader.onerror = reject;
+      });
+    };
+
+
+    const processImage = (img, fileName) => {
+      return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        resolve({ name: fileName, data: dataUrl, isPdf: false });
+      });
+    };
+
+
+    const PhotoUpload = ({ label, photos, onChange, onPreview, maxPhotos = 3 }) => {
+      const [isProcessing, setIsProcessing] = useState(false);
+      const handleFileSelect = async (e) => {
+        const files = Array.from(e.target.files);
+        if (photos.length + files.length > maxPhotos) { alert(`最大${maxPhotos}枚までです。`); return; }
+        setIsProcessing(true);
+        try {
+          const compressed = await Promise.all(files.map(compressImage));
+          onChange([...photos, ...compressed]);
+        } catch (err) { alert("処理に失敗しました。"); } finally { setIsProcessing(false); e.target.value = ''; }
+      };
+      return (
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-700 flex justify-between"><span>{label}</span><span className="text-xs font-normal text-gray-400">最大{maxPhotos}枚</span></label>
+          <div className="flex flex-wrap gap-2">
+            {photos.map((p, idx) => (
+              <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border bg-gray-100 cursor-pointer flex items-center justify-center" onClick={() => onPreview(p)}>
+                <img src={p.data} className="w-full h-full object-cover" />
+                <button onClick={(e) => { e.stopPropagation(); onChange(photos.filter((_, i) => i !== idx)); }} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5"><Icon name="X" size={14} /></button>
+              </div>
+            ))}
+            {photos.length < maxPhotos && (
+              <label className={`w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
+                <Icon name={isProcessing ? "Settings" : "PlusCircle"} className={`text-gray-400 ${isProcessing ? 'animate-spin' : ''}`} size={24} />
+                <span className="text-[10px] text-gray-400 mt-1">{isProcessing ? "変換中..." : "画像/PDF"}</span>
+                <input type="file" className="hidden" accept="image/*,application/pdf" multiple onChange={handleFileSelect} disabled={isProcessing} />
+              </label>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+
+    function ImageModal({ photo, onClose }) {
+      if (!photo) return null;
+      return (
+        <div className="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4 animate-in" onClick={onClose}>
+          <button className="absolute top-4 right-4 text-white bg-black/20 hover:bg-black/40 rounded-full p-2" onClick={onClose}><Icon name="X" size={32} /></button>
+          <img src={photo.data} className="max-w-full max-h-[85vh] rounded-lg shadow-2xl object-contain animate-in" onClick={(e) => e.stopPropagation()} />
+        </div>
+      );
+    }
+
+
+    function App() {
+      const [view, setView] = useState('home');
+      const [selectedLocation, setSelectedLocation] = useState(null);
+      const [records, setRecords] = useState([]);
+      const [editingRecord, setEditingRecord] = useState(null);
+      const [isLoading, setIsLoading] = useState(true);
+      const [fullscreenPhoto, setFullscreenPhoto] = useState(null);
+      const [listKeyword, setListKeyword] = useState('');
+      const [listStart, setListStart] = useState('');
+      const [listEnd, setListEnd] = useState('');
+
+
+      const refreshData = useCallback(() => {
+        setIsLoading(true);
+        if (typeof google === 'undefined') { setIsLoading(false); return; }
+        google.script.run
+          .withSuccessHandler((data) => {
+            const parsed = (data || []).map(r => ({
+              ...r,
+              machinePhotosJson: typeof r.machinePhotosJson === 'string' ? JSON.parse(r.machinePhotosJson || '[]') : r.machinePhotosJson,
+              faultsJson: typeof r.faultsJson === 'string' ? JSON.parse(r.faultsJson || '[]') : r.faultsJson,
+              quotesJson: typeof r.quotesJson === 'string' ? JSON.parse(r.quotesJson || '[]') : r.quotesJson,
+            }));
+            setRecords(parsed);
+            setIsLoading(false);
+          })
+          .withFailureHandler(() => setIsLoading(false))
+          .getMaintenanceRecords();
+      }, []);
+
+
+      useEffect(() => { refreshData(); }, [refreshData]);
+
+
+      const handleSave = (data) => {
+        setIsLoading(true);
+        google.script.run
+          .withSuccessHandler(() => { refreshData(); setEditingRecord(null); setView('list'); })
+          .withFailureHandler(() => { setIsLoading(false); alert("保存に失敗しました。"); })
+          .saveRecord(data);
+      };
+
+
+      const handleDelete = (id) => {
+        if(!confirm('削除してよろしいですか？')) return;
+        setIsLoading(true);
+        google.script.run.withSuccessHandler(() => refreshData()).deleteRecord(id);
+      };
+
+
+      const filteredList = useMemo(() => {
+        if (!selectedLocation) return [];
+        return records
+          .filter(r => {
+            if (r.locationId !== selectedLocation.id) return false;
+            const k = listKeyword.toLowerCase();
+            const matchK = !k || (r.machineName || '').toLowerCase().includes(k) || (r.repairDetails || '').toLowerCase().includes(k) || (r.operator || '').toLowerCase().includes(k);
+            const matchS = !listStart || r.date >= listStart;
+            const matchE = !listEnd || r.date <= listEnd;
+            return matchK && matchS && matchE;
+          })
+          .sort((a, b) => (a.date < b.date ? 1 : -1));
+      }, [records, selectedLocation, listKeyword, listStart, listEnd]);
+
+
+      return (
+        <div className="min-h-screen bg-gray-50 text-slate-900">
+          <ImageModal photo={fullscreenPhoto} onClose={() => setFullscreenPhoto(null)} />
+          {isLoading && (
+            <div className="fixed inset-0 bg-white/70 backdrop-blur-sm z-50 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          )}
+          <header className="bg-white border-b px-4 py-2 sticky top-0 z-10 shadow-sm h-12">
+            <div className="max-w-[1600px] mx-auto flex items-center justify-between h-full">
+              <div className="flex items-center gap-2">
+                {view !== 'home' && (
+                  <button onClick={() => { setView(view === 'entry' ? 'list' : 'home'); if(view === 'list') { setListKeyword(''); setListStart(''); setListEnd(''); } }} className="p-1 hover:bg-gray-100 rounded-full"><Icon name="ChevronLeft" size={20}/></button>
+                )}
+                <h1 className="text-lg font-bold text-blue-700 flex items-center gap-2 tracking-tighter"><Icon name="Settings" size={20}/>メンテ管理</h1>
+              </div>
+            </div>
+          </header>
+          <main className="max-w-[1600px] mx-auto p-4">
+            {view === 'home' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 animate-in">
+                {LOCATIONS.map((loc) => (
+                  <button key={loc.id} onClick={() => { if(loc.id === 'dashboard') setView('dashboard'); else { setSelectedLocation(loc); setView('list'); } }} className="flex flex-col sm:flex-row items-center p-5 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-blue-200 transition-all text-left">
+                    <div className={`p-4 rounded-xl ${loc.color} text-white mb-3 sm:mb-0 sm:mr-4`}><Icon name={loc.icon} size={28} /></div>
+                    <div className="flex-1 text-center sm:text-left"><span className="text-lg font-bold block">{loc.name}</span><span className="text-xs text-gray-400">管理・記録を行う</span></div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {view === 'list' && selectedLocation && (
+              <div className="space-y-4 animate-in">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h2 className="text-xl font-bold flex items-center gap-2"><div className={`p-2 rounded-lg ${selectedLocation.color} text-white`}><Icon name={selectedLocation.icon} size={20} /></div>{selectedLocation.name}</h2>
+                  <button onClick={() => { setEditingRecord({ locationId: selectedLocation.id, date: new Date().toISOString().split('T')[0], machineName: '', repairDetails: '', repairTime: '', repairCost: '', operator: '', machinePhotosJson: [], faultsJson: [], quotesJson: [] }); setView('entry'); }} className="bg-blue-600 text-white px-6 py-2 rounded-full flex items-center gap-2 shadow-lg font-bold hover:bg-blue-700 whitespace-nowrap"><Icon name="PlusCircle" size={20} /> 新規登録</button>
+                </div>
+                <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-wrap gap-3 items-end">
+                  <div className="flex-1 min-w-[150px]">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase ml-1">キーワード</span>
+                    <div className="relative mt-0.5"><Icon name="Search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" value={listKeyword} onChange={e => setListKeyword(e.target.value)} placeholder="機器・担当・詳細..." className="w-full pl-9 pr-4 py-2 bg-gray-50 rounded-lg text-sm border-none ring-1 ring-gray-100 focus:ring-blue-500 transition-all" /></div>
+                  </div>
+                  <div className="w-full sm:w-auto flex gap-2">
+                    <div className="flex-1 sm:w-36"><span className="text-[10px] font-bold text-gray-400 uppercase ml-1">開始日</span><input type="date" value={listStart} onChange={e => setListStart(e.target.value)} className="w-full mt-0.5 px-3 py-2 bg-gray-50 rounded-lg text-sm border-none ring-1 ring-gray-100 focus:ring-blue-500" /></div>
+                    <div className="flex-1 sm:w-36"><span className="text-[10px] font-bold text-gray-400 uppercase ml-1">終了日</span><input type="date" value={listEnd} onChange={e => setListEnd(e.target.value)} className="w-full mt-0.5 px-3 py-2 bg-gray-50 rounded-lg text-sm border-none ring-1 ring-gray-100 focus:ring-blue-500" /></div>
+                  </div>
+                  {(listKeyword || listStart || listEnd) && <button onClick={() => { setListKeyword(''); setListStart(''); setListEnd(''); }} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Icon name="X" size={20}/></button>}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {filteredList.length > 0 ? filteredList.map(record => {
+                    const displayPhoto = record.faultsJson?.[0] || record.machinePhotosJson?.[0];
+                    return (
+                    <div key={record.id} className="bg-white p-3 rounded-xl border flex gap-3 shadow-sm hover:border-blue-300 cursor-pointer transition-all animate-in" onClick={() => { setEditingRecord(record); setView('entry'); }}>
+                      <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center" onClick={(e) => { if(displayPhoto) { e.stopPropagation(); setFullscreenPhoto(displayPhoto); } }}>
+                        {displayPhoto ? <img src={displayPhoto.data} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><Icon name="Camera" size={20}/></div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] text-gray-500 font-bold uppercase">{record.date}</div>
+                        <div className="font-bold text-slate-800 truncate text-sm leading-tight">{record.machineName}</div>
+                        <div className="mt-1 flex flex-col"><span className="text-sm font-bold text-blue-600">¥{Number(record.repairCost || 0).toLocaleString()}</span><span className="text-[11px] text-gray-400 truncate mt-0.5">{record.repairDetails}</span></div>
+                      </div>
+                      <div className="flex items-center"><button onClick={(e) => { e.stopPropagation(); handleDelete(record.id); }} className="p-2 text-gray-200 hover:text-red-500"><Icon name="Trash2" size={16}/></button></div>
+                    </div>
+                  );}) : <div className="col-span-full py-12 text-center text-gray-400 bg-white rounded-2xl border border-dashed italic">データがありません</div>}
+                </div>
+              </div>
+            )}
+            {view === 'entry' && editingRecord && (
+              <div className="bg-white rounded-2xl shadow-sm border p-6 md:p-8 space-y-8 animate-in max-w-5xl mx-auto">
+                <div className="flex justify-between items-center border-b pb-4"><h2 className="text-xl font-bold text-blue-600">メンテナンス入力</h2><button onClick={() => setView('list')}><Icon name="X" className="text-gray-400" /></button></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <label className="block"><span className="text-xs font-bold text-gray-500 uppercase">点検日</span><input type="date" className="mt-1 block w-full rounded-xl bg-gray-50 p-4 text-sm font-bold" value={editingRecord.date} onChange={e => setEditingRecord({...editingRecord, date: e.target.value})} /></label>
+                      <label className="block"><span className="text-xs font-bold text-gray-500 uppercase">担当者</span><input type="text" className="mt-1 block w-full rounded-xl bg-gray-50 p-4 text-sm font-bold" value={editingRecord.operator} onChange={e => setEditingRecord({...editingRecord, operator: e.target.value})} /></label>
+                    </div>
+                    <label className="block"><span className="text-xs font-bold text-gray-500 uppercase">機器名</span><input type="text" className="mt-1 block w-full rounded-xl bg-gray-50 p-4 text-sm font-bold" value={editingRecord.machineName} onChange={e => setEditingRecord({...editingRecord, machineName: e.target.value})} /></label>
+                    <label className="block"><span className="text-xs font-bold text-gray-500 uppercase">詳細</span><textarea className="mt-1 block w-full rounded-xl bg-gray-50 p-4 text-sm" rows="4" value={editingRecord.repairDetails} onChange={e => setEditingRecord({...editingRecord, repairDetails: e.target.value})} /></label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <label className="block"><span className="text-xs font-bold text-gray-500 uppercase">費用 (¥)</span><input type="number" className="mt-1 block w-full rounded-xl bg-gray-50 p-4 text-sm font-bold" value={editingRecord.repairCost} onChange={e => setEditingRecord({...editingRecord, repairCost: e.target.value})} /></label>
+                      <label className="block"><span className="text-xs font-bold text-gray-500 uppercase">時間 (h)</span><input type="number" step="0.5" className="mt-1 block w-full rounded-xl bg-gray-50 p-4 text-sm font-bold" value={editingRecord.repairTime} onChange={e => setEditingRecord({...editingRecord, repairTime: e.target.value})} /></label>
+                    </div>
+                  </div>
+                  <div className="space-y-6 bg-gray-50/50 p-4 rounded-2xl border border-dashed">
+                    <PhotoUpload label="外観" photos={editingRecord.machinePhotosJson} onChange={p => setEditingRecord({...editingRecord, machinePhotosJson: p})} onPreview={p => setFullscreenPhoto(p)} />
+                    <PhotoUpload label="故障箇所" photos={editingRecord.faultsJson} onChange={p => setEditingRecord({...editingRecord, faultsJson: p})} onPreview={p => setFullscreenPhoto(p)} />
+                    <PhotoUpload label="見積・請求" photos={editingRecord.quotesJson} onChange={p => setEditingRecord({...editingRecord, quotesJson: p})} onPreview={p => setFullscreenPhoto(p)} maxPhotos={1} />
+                  </div>
+                </div>
+                <button onClick={() => handleSave(editingRecord)} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"><Icon name="Save" /> 変更を保存する</button>
+              </div>
+            )}
+            {view === 'dashboard' && <Dashboard records={records} />}
+          </main>
+        </div>
+      );
+    }
+
+
+    function Dashboard({ records }) {
+      const [keyword, setKeyword] = useState('');
+      const [startDate, setStartDate] = useState('');
+      const [endDate, setEndDate] = useState('');
+      const [targetLocation, setTargetLocation] = useState('all');
+
+
+      const filteredRecords = useMemo(() => {
+        return records.filter(r => {
+          const k = keyword.toLowerCase();
+          const matchKeyword = !k || (r.machineName || '').toLowerCase().includes(k) || (r.repairDetails || '').toLowerCase().includes(k) || (r.operator || '').toLowerCase().includes(k);
+          const matchStart = !startDate || r.date >= startDate;
+          const matchEnd = !endDate || r.date <= endDate;
+          const matchLoc = targetLocation === 'all' || r.locationId === targetLocation;
+          return matchKeyword && matchStart && matchEnd && matchLoc;
+        });
+      }, [records, keyword, startDate, endDate, targetLocation]);
+
+
+      const totalCost = filteredRecords.reduce((sum, r) => sum + Number(r.repairCost || 0), 0);
+      const totalTime = filteredRecords.reduce((sum, r) => sum + Number(r.repairTime || 0), 0);
+
+
+      const topRepairs = useMemo(() => {
+        return [...filteredRecords]
+          .sort((a, b) => Number(b.repairCost || 0) - Number(a.repairCost || 0))
+          .slice(0, 5);
+      }, [filteredRecords]);
+
+
+      const machineStats = useMemo(() => {
+        const stats = {};
+        filteredRecords.forEach(r => {
+          const name = r.machineName || '名称不明';
+          if (!stats[name]) stats[name] = { name, count: 0, cost: 0, time: 0 };
+          stats[name].count += 1;
+          stats[name].cost += Number(r.repairCost || 0);
+          stats[name].time += Number(r.repairTime || 0);
+        });
+        return Object.values(stats);
+      }, [filteredRecords]);
+
+
+      const topMachineByCount = useMemo(() => {
+        return [...machineStats].sort((a, b) => b.count - a.count).slice(0, 5);
+      }, [machineStats]);
+
+
+      // 金額トップ5を削除し、修理時間トップ5を追加
+      const topMachineByTime = useMemo(() => {
+        return [...machineStats].sort((a, b) => b.time - a.time).slice(0, 5);
+      }, [machineStats]);
+
+
+      const locationStats = useMemo(() => {
+        const stats = { ice: 0, process: 0, building4: 0 };
+        filteredRecords.forEach(r => {
+          if (stats[r.locationId] !== undefined) stats[r.locationId]++;
+        });
+        return stats;
+      }, [filteredRecords]);
+
+
+      const maxLocationCount = Math.max(...Object.values(locationStats), 1);
+
+
+      return (
+        <div className="space-y-4 animate-in">
+          {/* 上段：フィルターとサマリー */}
+          <div className="dashboard-grid h-auto lg:h-32">
+            <div className="col-span-12 lg:col-span-5 bg-white p-3 rounded-xl border shadow-sm flex flex-col justify-center">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="space-y-0.5"><span className="text-[10px] font-bold text-gray-400 uppercase">キーワード</span><input type="text" value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="検索" className="w-full px-2 py-1 bg-gray-50 rounded text-xs border-none ring-1 ring-gray-100 focus:ring-blue-500" /></div>
+                <div className="space-y-0.5"><span className="text-[10px] font-bold text-gray-400 uppercase">期間（自）</span><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-2 py-1 bg-gray-50 rounded text-xs border-none ring-1 ring-gray-100 focus:ring-blue-500" /></div>
+                <div className="space-y-0.5"><span className="text-[10px] font-bold text-gray-400 uppercase">期間（至）</span><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-2 py-1 bg-gray-50 rounded text-xs border-none ring-1 ring-gray-100 focus:ring-blue-500" /></div>
+                <div className="space-y-0.5"><span className="text-[10px] font-bold text-gray-400 uppercase">場所</span><select value={targetLocation} onChange={e => setTargetLocation(e.target.value)} className="w-full px-2 py-1 bg-gray-50 rounded text-xs border-none ring-1 ring-gray-100 focus:ring-blue-500"><option value="all">全て</option>{LOCATIONS.filter(l=>l.id!=='dashboard').map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
+              </div>
+            </div>
+           
+            <div className="col-span-12 sm:col-span-6 lg:col-span-4 bg-blue-600 text-white p-4 rounded-xl shadow-md flex flex-col justify-center">
+              <span className="text-blue-100 text-[10px] font-bold uppercase tracking-wider">合計修理費用</span>
+              <div className="text-2xl font-black truncate">¥{totalCost.toLocaleString()}</div>
+            </div>
+
+
+            <div className="col-span-12 sm:col-span-6 lg:col-span-3 bg-indigo-600 text-white p-4 rounded-xl shadow-md flex flex-col justify-center">
+              <span className="text-indigo-100 text-[10px] font-bold uppercase tracking-wider">合計作業時間</span>
+              <div className="text-2xl font-black">{totalTime.toLocaleString()} <span className="text-sm font-normal">h</span></div>
+            </div>
+          </div>
+
+
+          {/* 中段：ランキング */}
+          <div className="dashboard-grid">
+            <div className="col-span-12 md:col-span-4 lg:col-span-3 bg-white p-4 rounded-xl border shadow-sm">
+              <h3 className="font-bold text-gray-400 uppercase flex items-center gap-2 text-[10px] tracking-widest border-b pb-2 mb-3"><Icon name="Wrench" size={12} className="text-amber-500" /> 件数トップ5</h3>
+              <div className="space-y-2">
+                {topMachineByCount.map((m, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`w-4 h-4 flex-shrink-0 flex items-center justify-center rounded-full text-[8px] font-bold ${i===0 ? 'bg-amber-400 text-white' : 'bg-gray-100 text-gray-400'}`}>{i+1}</span>
+                      <span className="font-bold text-gray-700 truncate">{m.name}</span>
+                    </div>
+                    <span className="font-bold text-blue-600 ml-2 whitespace-nowrap">{m.count}件</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+
+            <div className="col-span-12 md:col-span-4 lg:col-span-3 bg-white p-4 rounded-xl border shadow-sm">
+              {/* アイコンを時計に変更、タイトルを修理時間トップ5に変更 */}
+              <h3 className="font-bold text-gray-400 uppercase flex items-center gap-2 text-[10px] tracking-widest border-b pb-2 mb-3"><Icon name="Clock" size={12} className="text-red-500" /> 修理時間トップ5</h3>
+              <div className="space-y-2">
+                {/* topMachineByCost ではなく topMachineByTime を使用 */}
+                {topMachineByTime.map((m, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`w-4 h-4 flex-shrink-0 flex items-center justify-center rounded-full text-[8px] font-bold ${i===0 ? 'bg-red-400 text-white' : 'bg-gray-100 text-gray-400'}`}>{i+1}</span>
+                      <span className="font-bold text-gray-700 truncate">{m.name}</span>
+                    </div>
+                    {/* 表示を金額から時間(h)に変更 */}
+                    <span className="font-black text-red-600 ml-2 whitespace-nowrap">{m.time.toLocaleString()} h</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+
+            <div className="col-span-12 md:col-span-4 lg:col-span-6 bg-white p-4 rounded-xl border shadow-sm flex flex-col">
+              <h3 className="font-bold text-gray-400 uppercase flex items-center gap-2 text-[10px] tracking-widest mb-3 border-b pb-2"><Icon name="PieChart" size={12} className="text-emerald-500" /> 場所別 メンテナンス件数</h3>
+              <div className="flex-1 flex flex-col justify-center gap-3">
+                {LOCATIONS.filter(l => l.id !== 'dashboard').map(loc => {
+                  const count = locationStats[loc.id] || 0;
+                  const ratio = (count / maxLocationCount) * 100;
+                  const colors = { ice: 'bg-blue-500', process: 'bg-green-500', building4: 'bg-orange-500' };
+                  return (
+                    <div key={loc.id} className="space-y-1">
+                      <div className="flex justify-between items-end">
+                        <span className="text-xs font-bold text-gray-600">{loc.name}</span>
+                        <span className="text-xs font-black text-gray-800">{count}件</span>
+                      </div>
+                      <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden">
+                        <div style={{ width: `${ratio}%` }} className={`h-full ${colors[loc.id]} transition-all duration-500 ease-out`} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+
+          {/* 下段：高額修理リスト */}
+          <div className="bg-white p-4 rounded-xl border shadow-sm">
+            <h3 className="font-bold text-gray-400 uppercase flex items-center gap-2 text-[10px] tracking-widest border-b pb-2 mb-2"><Icon name="BarChart3" size={12} className="text-purple-500" /> 高額修理ワースト5 (個別案件)</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="text-gray-400 border-b">
+                    <th className="pb-1 font-bold text-[9px] uppercase">日付</th>
+                    <th className="pb-1 font-bold text-[9px] uppercase">機器名</th>
+                    <th className="pb-1 font-bold text-[9px] uppercase">詳細</th>
+                    <th className="pb-1 font-bold text-[9px] uppercase text-right">金額</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {topRepairs.map((r, i) => (
+                    <tr key={i} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-2 text-[10px] text-gray-400 whitespace-nowrap">{r.date}</td>
+                      <td className="py-2 font-bold text-slate-700 truncate max-w-[120px]">{r.machineName}</td>
+                      <td className="py-2 text-gray-500 truncate max-w-[300px]">{r.repairDetails}</td>
+                      <td className="py-2 text-right font-black text-blue-600 whitespace-nowrap">¥{Number(r.repairCost).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
